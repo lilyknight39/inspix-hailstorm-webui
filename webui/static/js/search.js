@@ -8,6 +8,7 @@ let state = {
   character: [],
   tags: [],
   type: "",
+  view: "grid",
 };
 
 function entryTokens(entry) {
@@ -40,6 +41,7 @@ function sortEntries() {
 
 function renderResults() {
   const container = document.getElementById("searchResults");
+  container.className = `result-grid${state.view === "list" ? " list-view" : ""}`;
   const perPage = parseInt(document.getElementById("entriesPerPage").value, 10);
   const totalPages = Math.max(1, Math.ceil(searchEntries.length / perPage));
   currentPage = Math.min(currentPage, totalPages);
@@ -56,7 +58,11 @@ function renderResults() {
     card.innerHTML = `
       <div class="entry-title">${entry.label}</div>
       <div class="entry-meta">${entry.type} • ${App.formatBytes(entry.size)}</div>
-      ${entry.realName ? `<div class="entry-meta">${entry.realName}</div>` : ""}
+      ${
+        entry.realName
+          ? `<div class="entry-meta entry-meta-secondary">${entry.realName}</div>`
+          : ""
+      }
       <div class="entry-footer">
         <span class="badge">${entry.resourceType}</span>
         <a class="btn btn-sm btn-outline-dark" href="${viewLink}">${I18n.t("search.open")}</a>
@@ -124,7 +130,7 @@ function applyFilters() {
         filtered = filtered.filter((entry) => {
           const label = `${entry.label} ${entry.realName || ""}`.trim();
           const tokens = entryTokens(entry);
-          return mediaFilters.some((filter) =>
+          return mediaFilters.every((filter) =>
             FilterUtils.matchLabel(label, filter, tokens)
           );
         });
@@ -139,7 +145,7 @@ function applyFilters() {
         filtered = filtered.filter((entry) => {
           const label = `${entry.label} ${entry.realName || ""}`.trim();
           const tokens = entryTokens(entry);
-          return charFilters.some((filter) =>
+          return charFilters.every((filter) =>
             FilterUtils.matchLabel(label, filter, tokens)
           );
         });
@@ -154,7 +160,7 @@ function applyFilters() {
         filtered = filtered.filter((entry) => {
           const label = `${entry.label} ${entry.realName || ""}`.trim();
           const tokens = entryTokens(entry);
-          return tagFilters.some((filter) =>
+          return tagFilters.every((filter) =>
             FilterUtils.matchLabel(label, filter, tokens)
           );
         });
@@ -187,6 +193,9 @@ function updateUrl() {
   }
   if (state.type) {
     params.set("type", state.type);
+  }
+  if (state.view && state.view !== "grid") {
+    params.set("view", state.view);
   }
   const next = params.toString();
   window.history.replaceState(
@@ -224,6 +233,13 @@ document.addEventListener("DOMContentLoaded", () => {
   setupSearchControls();
   document.getElementById("searchQuery").value = state.query;
   document.getElementById("searchField").value = state.field;
+  updateViewButtons();
+  document.getElementById("viewGrid").addEventListener("click", () => {
+    setViewMode("grid");
+  });
+  document.getElementById("viewList").addEventListener("click", () => {
+    setViewMode("list");
+  });
   document.getElementById("sortBy").addEventListener("change", () => {
     sortEntries();
     renderResults();
@@ -258,6 +274,7 @@ function setupSearchControls() {
       character: [],
       tags: [],
       type: "",
+      view: state.view,
     };
     document.getElementById("searchQuery").value = "";
     document.getElementById("searchField").value = "all";
@@ -283,6 +300,7 @@ function hydrateStateFromUrl() {
   state.character = parseParamList(params.get("character"));
   state.tags = parseParamList(params.get("tags"));
   state.type = params.get("type") || "";
+  state.view = params.get("view") || "grid";
 }
 
 function parseParamList(value) {
@@ -375,4 +393,21 @@ function buildTypeFilter() {
     updateUrl();
     applyFilters();
   };
+}
+
+function setViewMode(mode) {
+  state.view = mode;
+  updateUrl();
+  renderResults();
+  updateViewButtons();
+}
+
+function updateViewButtons() {
+  const gridBtn = document.getElementById("viewGrid");
+  const listBtn = document.getElementById("viewList");
+  if (!gridBtn || !listBtn) {
+    return;
+  }
+  gridBtn.classList.toggle("active", state.view !== "list");
+  listBtn.classList.toggle("active", state.view === "list");
 }

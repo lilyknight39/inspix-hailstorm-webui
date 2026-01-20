@@ -55,16 +55,43 @@ are available:
 
 - ACB audio preview: requires `vgmstream-cli` and `ffmpeg` in `PATH`.
   Preview output is cached under `cache/webui-preview/acb`.
-- Unity assetbundle preview: set `HAILSTORM_ASSETRIPPER_CMD` to a command that
-  exports images/videos/models into an output folder. The command receives
-  `{input}` and `{output}` placeholders. Output is cached under
+- Unity assetbundle preview: set `ASSETRIPPER_DIR` to your
+  AssetRipper release folder (containing `AssetRipper.GUI.Free`).
+  Inspix-hailstorm will start AssetRipper in headless mode and call its
+  export API automatically. Output is cached under
   `cache/webui-preview/assetbundle/<label>`.
+- If the WebUI shows "Export not configured", check:
+  - Assetbundle export: `ASSETRIPPER_DIR` is set in your shell
+    environment before launching the WebUI, and the binary exists.
+  - ACB audio preview: `vgmstream-cli` and `ffmpeg` are available in `PATH`.
 
-Example (replace with your AssetRipper export command):
+Example (set AssetRipper directory):
 
 ```bash
-export HAILSTORM_ASSETRIPPER_CMD="assetripper-export --input {input} --output {output}"
+export ASSETRIPPER_DIR="/path/to/AssetRipper_release_folder"
 ```
+
+Notes:
+- AssetRipper uses `--port` (default 23600) when started by inspix-hailstorm.
+- Preview output is derived from `cache/plain`; ensure the plain cache exists.
+
+Detailed steps:
+
+Assetbundle export (AssetRipper GUI Web)
+1) Install AssetRipper from the official releases and locate `AssetRipper.GUI.Free`.
+2) Set `ASSETRIPPER_DIR` to the release folder.
+3) Generate `cache/plain` with inspix-hailstorm (run a normal update or convert mode) so the assetbundle file exists.
+4) Start inspix-hailstorm with WebUI; it will launch AssetRipper headless and
+   call `/LoadFile` and `/Export/PrimaryContent` automatically.
+   Reference: https://github.com/AssetRipper/AssetRipper/blob/master/Source/AssetRipper.GUI.Web/WebApplicationLauncher.cs
+
+Notes:
+- AssetRipper rejects export paths that are system directories (Desktop/Documents/Downloads).
+- `--headless` avoids launching the browser. `--port` is supported by AssetRipper GUI Web.
+
+ACB audio preview
+1) Install `vgmstream-cli` and `ffmpeg` and ensure both are in `PATH`.
+2) Use "Export & Preview" on an `.acb` entry.
 
 ### Docker
 

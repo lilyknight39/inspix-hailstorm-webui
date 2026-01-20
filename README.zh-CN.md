@@ -54,15 +54,43 @@ go run . --web --addr 127.0.0.1:5001
 
 - ACB 音频预览：需要 `vgmstream-cli` 与 `ffmpeg` 已加入 `PATH`。
   预览输出缓存于 `cache/webui-preview/acb`。
-- Unity assetbundle 预览：通过 `HAILSTORM_ASSETRIPPER_CMD` 设置导出命令，
-  命令支持 `{input}` 与 `{output}` 占位符，输出缓存于
+- Unity assetbundle 预览：设置 `ASSETRIPPER_DIR` 为 AssetRipper
+  发行版目录（包含 `AssetRipper.GUI.Free`）。Inspix-hailstorm 会以 headless
+  模式启动 AssetRipper 并自动调用导出接口，输出缓存于
   `cache/webui-preview/assetbundle/<label>`。
+- 如果 WebUI 提示 “Export not configured”，请检查：
+  - Assetbundle 导出：确认在启动 WebUI 前已设置 `ASSETRIPPER_DIR`，
+    且二进制文件存在。
+  - ACB 预览：确保 `vgmstream-cli` 与 `ffmpeg` 在 `PATH` 中可用。
 
-示例（请替换为你自己的 AssetRipper 导出命令）：
+示例（设置 AssetRipper 目录）：
 
 ```bash
-export HAILSTORM_ASSETRIPPER_CMD="assetripper-export --input {input} --output {output}"
+export ASSETRIPPER_DIR="/path/to/AssetRipper_release_folder"
 ```
+
+补充说明：
+- inspix-hailstorm 启动 AssetRipper 时使用 `--port`（默认 23600）。
+- 预览输出来自 `cache/plain`，请确保已生成解密缓存。
+
+详细步骤：
+
+Assetbundle 导出（AssetRipper GUI Web）
+1) 从官方发行版安装 AssetRipper 并找到 `AssetRipper.GUI.Free`。
+2) 设置 `ASSETRIPPER_DIR` 为发行版目录。
+3) 先使用 inspix-hailstorm 生成 `cache/plain`（常规更新或 convert 模式），确保存在 assetbundle 文件。
+4) 启动 inspix-hailstorm 的 WebUI；会自动 headless 启动 AssetRipper 并调用
+   `/LoadFile` 与 `/Export/PrimaryContent`。
+   参考上游源码：
+   https://github.com/AssetRipper/AssetRipper/blob/master/Source/AssetRipper.GUI.Web/WebApplicationLauncher.cs
+
+注意：
+- AssetRipper 不允许导出到系统目录（Desktop/Documents/Downloads）。
+- `--headless` 可避免自动打开浏览器；`--port` 为 AssetRipper GUI Web 支持的端口参数。
+
+ACB 音频预览
+1) 安装 `vgmstream-cli` 与 `ffmpeg`，确保在 `PATH` 中。
+2) 在 `.acb` 条目上点击“导出并预览”。
 
 ### Docker
 

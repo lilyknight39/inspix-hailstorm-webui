@@ -56,6 +56,14 @@ func NewServer() (*Server, error) {
 	catalog := NewCatalogStore()
 	_ = catalog.Reload()
 
+	if assetRipperConfigured() {
+		go func() {
+			if err := ensureAssetRipperRunning(); err != nil {
+				debugLog("AssetRipper start failed: %v", err)
+			}
+		}()
+	}
+
 	return &Server{
 		templates: templates,
 		staticFS:  http.FS(static),
@@ -72,6 +80,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("/search", s.handleSearchPage)
 	mux.HandleFunc("/view", s.handleViewPage)
 	mux.HandleFunc("/masterdata", s.handleMasterPage)
+	mux.HandleFunc("/readme", s.handleReadme)
 
 	mux.HandleFunc("/api/status", s.handleStatus)
 	mux.HandleFunc("/api/filters", s.handleFilters)
@@ -125,6 +134,23 @@ func (s *Server) handleSearchPage(w http.ResponseWriter, r *http.Request) {
 		"Query": r.URL.Query().Get("query"),
 	}
 	s.render(w, "search.html", data)
+}
+
+func (s *Server) handleReadme(w http.ResponseWriter, r *http.Request) {
+	lang := strings.ToLower(r.URL.Query().Get("lang"))
+	path := "README.md"
+	if strings.HasPrefix(lang, "zh") {
+		if fileExists("README.zh-CN.md") {
+			path = "README.zh-CN.md"
+		}
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+	_, _ = w.Write(content)
 }
 
 func (s *Server) handleViewPage(w http.ResponseWriter, r *http.Request) {

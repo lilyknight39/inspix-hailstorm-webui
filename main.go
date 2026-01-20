@@ -12,9 +12,11 @@ import (
 func main() {
 	fWeb := flag.Bool("web", false, "Start the WebUI server.")
 	fAddr := flag.String("addr", "127.0.0.1:5001", "WebUI listen address.")
+	fDebug := flag.Bool("debug", false, "Enable debug logging.")
 	opts := runner.ParseFlags()
 
 	if *fWeb {
+		webui.SetDebug(*fDebug)
 		if err := webui.Run(*fAddr); err != nil {
 			rich.Error("WebUI failed: %v", err)
 			os.Exit(1)
