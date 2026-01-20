@@ -32,3 +32,4 @@ hailstorm
 secrets/
 .vscode
 .env.local
+acb_to_mp3_inplace.py
