@@ -71,6 +71,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("/api/status", s.handleStatus)
 	mux.HandleFunc("/api/search", s.handleSearch)
 	mux.HandleFunc("/api/entry", s.handleEntry)
+	mux.HandleFunc("/api/entry/preview", s.handleEntryPreview)
 	mux.HandleFunc("/api/entry/raw", s.handleEntryRaw)
 	mux.HandleFunc("/api/entry/plain", s.handleEntryPlain)
 	mux.HandleFunc("/api/entry/yaml", s.handleEntryYaml)
@@ -210,6 +211,10 @@ func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
 	rawPath, rawOK := rawAssetPath(entry)
 	plainPath := plainAssetPath(entry)
 	plainOK := fileExists(plainPath)
+	preview := PreviewInfo{}
+	if plainOK {
+		preview = resolvePreview(entry.StrLabelCrc, entry.StrTypeCrc, entry.ResourceType, plainPath)
+	}
 
 	yamlName := ""
 	yamlOK := false
@@ -239,8 +244,34 @@ func (s *Server) handleEntry(w http.ResponseWriter, r *http.Request) {
 		"plainName":      assetDisplayName(entry),
 		"yamlAvailable":  yamlOK,
 		"yamlName":       yamlName,
+		"preview": map[string]any{
+			"available": preview.Available,
+			"kind":      preview.Kind,
+			"type":      preview.ContentType,
+			"source":    preview.Source,
+		},
 	}
 	writeJSON(w, resp)
+}
+
+func (s *Server) handleEntryPreview(w http.ResponseWriter, r *http.Request) {
+	entry, err := s.findEntry(r.URL.Query().Get("label"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	path := plainAssetPath(entry)
+	if !fileExists(path) {
+		http.Error(w, "plain asset not found", http.StatusNotFound)
+		return
+	}
+	preview := resolvePreview(entry.StrLabelCrc, entry.StrTypeCrc, entry.ResourceType, path)
+	if !preview.Available {
+		http.Error(w, "preview not supported", http.StatusUnsupportedMediaType)
+		return
+	}
+	w.Header().Set("Content-Type", preview.ContentType)
+	http.ServeFile(w, r, preview.Path)
 }
 
 func (s *Server) handleEntryRaw(w http.ResponseWriter, r *http.Request) {

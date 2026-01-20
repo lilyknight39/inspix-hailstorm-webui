@@ -48,6 +48,24 @@ Or run after build:
 
 Open in browser: `http://127.0.0.1:5001`.
 
+### WebUI Preview Extras
+
+The WebUI can generate richer previews for some asset types when optional tools
+are available:
+
+- ACB audio preview: requires `vgmstream-cli` and `ffmpeg` in `PATH`.
+  Preview output is cached under `cache/webui-preview/acb`.
+- Unity assetbundle preview: set `HAILSTORM_ASSETRIPPER_CMD` to a command that
+  exports images/videos/models into an output folder. The command receives
+  `{input}` and `{output}` placeholders. Output is cached under
+  `cache/webui-preview/assetbundle/<label>`.
+
+Example (replace with your AssetRipper export command):
+
+```bash
+export HAILSTORM_ASSETRIPPER_CMD="assetripper-export --input {input} --output {output}"
+```
+
 ### Docker
 
 Image:
@@ -60,6 +78,7 @@ Defaults to `dbonly`; override via docker CLI `--entrypoint` if needed.
 
 - https://github.com/vertesan/inspix-hailstorm
 - https://github.com/AllenHeartcore/GkmasObjectManager
+- https://github.com/AssetRipper/AssetRipper
 
 ## License
 

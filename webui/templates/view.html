@@ -76,6 +76,13 @@
       </div>
     </div>
   </div>
+
+  <div class="panel-card">
+    <div class="panel-header">
+      <h2>Preview</h2>
+    </div>
+    <div id="previewContainer" class="preview-shell">No preview.</div>
+  </div>
 </section>
 
 <section class="panel-card">
@@ -102,5 +109,6 @@
 <script>
   const entryLabel = "{{ .Label }}";
 </script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer/dist/model-viewer.min.js"></script>
 <script src="/static/js/view.js" defer></script>
 {{ end }}

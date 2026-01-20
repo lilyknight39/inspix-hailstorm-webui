@@ -48,6 +48,22 @@ go run . --web --addr 127.0.0.1:5001
 
 打开浏览器访问：`http://127.0.0.1:5001`。
 
+### WebUI 预览增强
+
+当可选工具可用时，WebUI 支持更丰富的资源预览能力：
+
+- ACB 音频预览：需要 `vgmstream-cli` 与 `ffmpeg` 已加入 `PATH`。
+  预览输出缓存于 `cache/webui-preview/acb`。
+- Unity assetbundle 预览：通过 `HAILSTORM_ASSETRIPPER_CMD` 设置导出命令，
+  命令支持 `{input}` 与 `{output}` 占位符，输出缓存于
+  `cache/webui-preview/assetbundle/<label>`。
+
+示例（请替换为你自己的 AssetRipper 导出命令）：
+
+```bash
+export HAILSTORM_ASSETRIPPER_CMD="assetripper-export --input {input} --output {output}"
+```
+
 ### Docker
 
 镜像地址：
@@ -60,6 +76,7 @@ https://github.com/vertesan/inspix-hailstorm/pkgs/container/inspix-hailstorm
 
 - https://github.com/vertesan/inspix-hailstorm
 - https://github.com/AllenHeartcore/GkmasObjectManager
+- https://github.com/AssetRipper/AssetRipper
 
 ## License
 

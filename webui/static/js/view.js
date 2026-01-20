@@ -28,6 +28,68 @@ function renderPills(container, items) {
   });
 }
 
+function renderPreview(preview, label) {
+  const container = document.getElementById("previewContainer");
+  if (!container) {
+    return;
+  }
+  container.innerHTML = "";
+  if (!preview || !preview.available) {
+    container.textContent = "Preview not available.";
+    return;
+  }
+  if (preview.source && preview.source !== "plain") {
+    const note = document.createElement("div");
+    note.className = "preview-note";
+    note.textContent = "Derived preview";
+    container.appendChild(note);
+  }
+  const url = `/api/entry/preview?label=${encodeURIComponent(label)}`;
+  if (preview.kind === "image") {
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = label;
+    container.appendChild(img);
+    return;
+  }
+  if (preview.kind === "audio") {
+    const audio = document.createElement("audio");
+    audio.controls = true;
+    const source = document.createElement("source");
+    source.src = url;
+    if (preview.type) {
+      source.type = preview.type;
+    }
+    audio.appendChild(source);
+    container.appendChild(audio);
+    return;
+  }
+  if (preview.kind === "video") {
+    const video = document.createElement("video");
+    video.controls = true;
+    video.playsInline = true;
+    const source = document.createElement("source");
+    source.src = url;
+    if (preview.type) {
+      source.type = preview.type;
+    }
+    video.appendChild(source);
+    container.appendChild(video);
+    return;
+  }
+  if (preview.kind === "model") {
+    const viewer = document.createElement("model-viewer");
+    viewer.setAttribute("src", url);
+    viewer.setAttribute("camera-controls", "");
+    viewer.setAttribute("auto-rotate", "");
+    viewer.setAttribute("ar", "");
+    viewer.setAttribute("shadow-intensity", "0.7");
+    container.appendChild(viewer);
+    return;
+  }
+  container.textContent = "Preview not supported.";
+}
+
 async function loadEntry() {
   const label =
     typeof entryLabel === "string" && entryLabel
@@ -78,6 +140,7 @@ async function loadEntry() {
   renderPills(document.getElementById("depList"), data.dependencies);
   renderPills(document.getElementById("contentList"), data.contentTypes);
   renderPills(document.getElementById("categoryList"), data.categories);
+  renderPreview(data.preview, label);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
