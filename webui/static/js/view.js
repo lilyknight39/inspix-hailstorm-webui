@@ -42,12 +42,6 @@ function renderPreview(preview, label) {
     }
     return;
   }
-  if (preview.source && preview.source !== "plain") {
-    const note = document.createElement("div");
-    note.className = "preview-note";
-    note.textContent = I18n.t("view.derivedPreview");
-    container.appendChild(note);
-  }
   const url = `/api/entry/preview?label=${encodeURIComponent(label)}`;
   if (preview.kind === "image") {
     const img = document.createElement("img");
@@ -112,6 +106,26 @@ function renderPreview(preview, label) {
     container.appendChild(viewer);
     return;
   }
+  if (preview.kind === "text") {
+    const pre = document.createElement("pre");
+    pre.className = "preview-text";
+    pre.textContent = "Loading...";
+    fetch(url)
+      .then((res) => res.text())
+      .then((text) => {
+        const max = 20000;
+        if (text.length > max) {
+          pre.textContent = `${text.slice(0, max)}\n... (truncated)`;
+        } else {
+          pre.textContent = text;
+        }
+      })
+      .catch(() => {
+        pre.textContent = I18n.t("view.failedLoad");
+      });
+    container.appendChild(pre);
+    return;
+  }
   container.textContent = I18n.t("view.previewNotSupported");
 }
 
@@ -150,10 +164,11 @@ function renderPreviewActions(preview, label) {
         { method: "POST" }
       );
       if (!res.ok) {
-        throw new Error("export failed");
+        const message = (await res.text()).trim();
+        throw new Error(message || I18n.t("view.exportFailed"));
       }
     } catch (err) {
-      hint.textContent = I18n.t("view.exportFailed");
+      hint.textContent = err.message || I18n.t("view.exportFailed");
     }
     await loadEntry();
   };

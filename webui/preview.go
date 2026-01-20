@@ -3,7 +3,9 @@ package webui
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -29,6 +31,7 @@ type PreviewInfo struct {
 
 var loopRE = regexp.MustCompile(`(?i)\bloop (start|end)\b`)
 var streamCountRE = regexp.MustCompile(`(?i)(stream count|streams|subsong count|subsongs)\s*:\s*(\d+)`)
+var meshVertexCountRE = regexp.MustCompile(`"m_VertexCount"\s*:\s*(\d+)`)
 
 type PreviewItem struct {
 	ID          string
@@ -206,9 +209,17 @@ func ensureAssetBundlePreview(label string, plainPath string, force bool) Previe
 		}
 	}
 
-	cmdLine := strings.ReplaceAll(os.Getenv("HAILSTORM_ASSETRIPPER_CMD"), "{input}", shellEscape(plainPath))
-	cmdLine = strings.ReplaceAll(cmdLine, "{output}", shellEscape(outDir))
-	_ = exec.Command("sh", "-c", cmdLine).Run()
+	if assetRipperConfigured() {
+		if err := assetRipperExport(plainPath, outDir); err != nil {
+			debugLog("AssetRipper export failed: %v", err)
+		}
+	} else {
+		cmdLine := strings.ReplaceAll(os.Getenv("HAILSTORM_ASSETRIPPER_CMD"), "{input}", shellEscape(plainPath))
+		cmdLine = strings.ReplaceAll(cmdLine, "{output}", shellEscape(outDir))
+		if err := exec.Command("sh", "-c", cmdLine).Run(); err != nil {
+			debugLog("Assetbundle export command failed: %v", err)
+		}
+	}
 
 	info := findBundlePreview(outDir)
 	info.OutputDir = outDir
@@ -217,7 +228,7 @@ func ensureAssetBundlePreview(label string, plainPath string, force bool) Previe
 }
 
 func findBundlePreview(dir string) PreviewInfo {
-	if img := firstMatch(dir, []string{"*.png", "*.jpg", "*.jpeg", "*.webp"}); img != "" {
+	if img := firstMatchRecursive(dir, []string{"*.png", "*.jpg", "*.jpeg", "*.webp"}); img != "" {
 		ctype := "image/png"
 		ext := strings.ToLower(filepath.Ext(img))
 		switch ext {
@@ -236,7 +247,7 @@ func findBundlePreview(dir string) PreviewInfo {
 			Source:      "derived",
 		}
 	}
-	if vid := firstMatch(dir, []string{"*.mp4", "*.webm"}); vid != "" {
+	if vid := firstMatchRecursive(dir, []string{"*.mp4", "*.webm"}); vid != "" {
 		ctype := "video/mp4"
 		if strings.HasSuffix(strings.ToLower(vid), ".webm") {
 			ctype = "video/webm"
@@ -249,7 +260,7 @@ func findBundlePreview(dir string) PreviewInfo {
 			Source:      "derived",
 		}
 	}
-	if model := firstMatch(dir, []string{"*.glb", "*.gltf"}); model != "" {
+	if model := firstMatchRecursive(dir, []string{"*.glb", "*.gltf"}); model != "" {
 		ctype := "model/gltf-binary"
 		if strings.HasSuffix(strings.ToLower(model), ".gltf") {
 			ctype = "model/gltf+json"
@@ -259,6 +270,15 @@ func findBundlePreview(dir string) PreviewInfo {
 			Kind:        "model",
 			ContentType: ctype,
 			Path:        model,
+			Source:      "derived",
+		}
+	}
+	if mesh := firstMeshJSON(dir); mesh != "" {
+		return PreviewInfo{
+			Available:   true,
+			Kind:        "text",
+			ContentType: "application/json",
+			Path:        mesh,
 			Source:      "derived",
 		}
 	}
@@ -273,6 +293,71 @@ func firstMatch(dir string, patterns []string) string {
 		}
 	}
 	return ""
+}
+
+var errStopWalk = errors.New("stop walk")
+
+func firstMatchRecursive(dir string, patterns []string) string {
+	if len(patterns) == 0 {
+		return ""
+	}
+	match := ""
+	err := filepath.WalkDir(dir, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || entry.IsDir() {
+			return nil
+		}
+		name := entry.Name()
+		for _, pattern := range patterns {
+			ok, matchErr := filepath.Match(pattern, name)
+			if matchErr != nil || !ok {
+				continue
+			}
+			match = path
+			return errStopWalk
+		}
+		return nil
+	})
+	if err != nil && !errors.Is(err, errStopWalk) {
+		return ""
+	}
+	return match
+}
+
+func firstMeshJSON(dir string) string {
+	meshDir := filepath.Join(dir, "Assets", "Mesh")
+	info, err := os.Stat(meshDir)
+	if err != nil || !info.IsDir() {
+		return ""
+	}
+	matches, _ := filepath.Glob(filepath.Join(meshDir, "*.json"))
+	for _, match := range matches {
+		if meshHasVertices(match) {
+			return match
+		}
+	}
+	return ""
+}
+
+func meshHasVertices(path string) bool {
+	file, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+
+	buf, err := io.ReadAll(io.LimitReader(file, 2*1024*1024))
+	if err != nil {
+		return false
+	}
+	match := meshVertexCountRE.FindSubmatch(buf)
+	if len(match) < 2 {
+		return false
+	}
+	count, err := strconv.Atoi(string(match[1]))
+	if err != nil {
+		return false
+	}
+	return count > 0
 }
 
 func detectStreamCount(path string) int {
@@ -392,6 +477,9 @@ func detectLoop(path string, subsong int) bool {
 }
 
 func assetBundleExportConfigured() bool {
+	if assetRipperConfigured() {
+		return true
+	}
 	return strings.TrimSpace(os.Getenv("HAILSTORM_ASSETRIPPER_CMD")) != ""
 }
 
