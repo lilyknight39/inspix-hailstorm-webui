@@ -28,6 +28,40 @@ function renderPills(container, items) {
   });
 }
 
+function fileUrlFromPath(path) {
+  if (!path) {
+    return "#";
+  }
+  let normalized = path.replace(/\\/g, "/");
+  if (!normalized.startsWith("/")) {
+    normalized = `/${normalized}`;
+  }
+  return `file://${encodeURI(normalized)}`;
+}
+
+function renderOutputHint(hint, message, outputDir) {
+  hint.textContent = "";
+  if (message) {
+    const line = document.createElement("div");
+    line.textContent = message;
+    hint.appendChild(line);
+  }
+  if (outputDir) {
+    const row = document.createElement("div");
+    const label = document.createElement("span");
+    label.textContent = I18n.t("view.outputDir");
+    const link = document.createElement("a");
+    link.href = fileUrlFromPath(outputDir);
+    link.textContent = outputDir;
+    link.target = "_blank";
+    link.rel = "noopener";
+    row.appendChild(label);
+    row.appendChild(document.createTextNode(" "));
+    row.appendChild(link);
+    hint.appendChild(row);
+  }
+}
+
 function renderPreview(preview, label) {
   const container = document.getElementById("previewContainer");
   if (!container) {
@@ -139,9 +173,7 @@ function renderPreviewActions(preview, label) {
   if (!preview || !preview.exportable) {
     button.classList.add("d-none");
     if (preview && preview.outputDir) {
-      hint.textContent = I18n.t("view.exportNotConfigured", {
-        path: preview.outputDir,
-      });
+      renderOutputHint(hint, I18n.t("view.exportNotConfigured"), preview.outputDir);
     } else {
       hint.textContent = "";
     }
@@ -151,9 +183,7 @@ function renderPreviewActions(preview, label) {
   button.classList.remove("d-none");
   button.disabled = false;
   button.textContent = I18n.t("view.exportPreview");
-  hint.textContent = preview.outputDir
-    ? I18n.t("view.outputDir", { path: preview.outputDir })
-    : "";
+  renderOutputHint(hint, "", preview.outputDir);
 
   button.onclick = async () => {
     button.disabled = true;
